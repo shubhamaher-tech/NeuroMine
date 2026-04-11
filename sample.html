@@ -1,0 +1,783 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>NeuroMine — AI Sustainability Platform</title>
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    :root{
+      --bg:#f7f9fc;
+      --card:#ffffff;
+      --muted:#6b7280;
+      --accent1:#2c98f0;
+      --accent2:#2cc4a2;
+      --accent3:#667eea;
+      --success:#28a745;
+      --danger:#dc3545;
+      --radius:14px;
+      --glass: rgba(255,255,255,0.8);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:Inter, "Segoe UI", Roboto, Arial, sans-serif;
+      background:var(--bg);
+      color:#082032;
+      -webkit-font-smoothing:antialiased;
+    }
+
+    /* ---------- Intro / Splash ---------- */
+    #intro {
+      position:fixed; inset:0;
+      background:linear-gradient(135deg,var(--accent3),var(--accent1));
+      color:white;
+      display:flex;
+      align-items:center; justify-content:center;
+      flex-direction:column;
+      z-index:2000;
+      overflow:hidden;
+    }
+    #intro .inner { text-align:center; max-width:900px; padding:28px;}
+    #intro h1 { font-size:2.6rem; margin:0 0 12px; font-weight:800; letter-spacing:0.2px;}
+    #intro p { margin:0 0 22px; font-size:1.05rem; opacity:0.95;}
+    #intro .enter {
+      padding:12px 28px; border-radius:999px; border:none; font-weight:700;
+      background:white; color:var(--accent1); cursor:pointer; box-shadow: 0 12px 30px rgba(0,0,0,0.12);
+      transition:transform .18s ease, box-shadow .18s ease;
+    }
+    #intro .enter:hover{ transform: translateY(-4px); box-shadow: 0 18px 36px rgba(0,0,0,0.18); }
+
+    /* particles canvas */
+    #particles { position:absolute; inset:0; z-index:1; }
+
+    /* ---------- Header ---------- */
+    header.app-header {
+      display:none; /* shown after intro */
+      position:sticky; top:0; z-index:100;
+      background:linear-gradient(90deg,var(--accent1),var(--accent2));
+      padding:14px 22px;
+      color:white;
+      box-shadow: 0 8px 30px rgba(44,152,240,0.12);
+      align-items:center; justify-content:space-between; display:flex;
+    }
+    header .brand { display:flex; gap:12px; align-items:center; }
+    header .brand h2 { margin:0; font-size:1rem; font-weight:800; letter-spacing:0.2px; }
+    .nav { display:flex; gap:10px; align-items:center; }
+    .tab-btn {
+      background: rgba(255,255,255,0.12);
+      color:white; border:none; padding:8px 14px; border-radius:999px; cursor:pointer; font-weight:700;
+      transition: all .18s ease;
+    }
+    .tab-btn:hover{ transform:translateY(-3px); background: rgba(255,255,255,0.18); }
+    .tab-btn.active { background:white; color:var(--accent1); box-shadow:0 8px 24px rgba(0,0,0,0.12); }
+
+    /* ---------- Layout ---------- */
+    .container { max-width:1180px; margin:28px auto; padding:0 18px; display:none; } /* shown after intro */
+    .grid { display:grid; gap:16px; }
+    .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+    .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+    .card {
+      background:var(--card);
+      border-radius:var(--radius);
+      padding:18px;
+      box-shadow: 0 10px 28px rgba(12,30,60,0.06);
+      border:1px solid rgba(15,23,42,0.03);
+      transition: transform .18s ease, box-shadow .18s ease;
+    }
+    .card:hover{ transform: translateY(-6px); box-shadow:0 20px 60px rgba(12,30,60,0.08); }
+    h3{ margin:0 0 10px; font-size:1.05rem; }
+
+    /* Inputs */
+    label{ display:block; font-weight:700; font-size:0.9rem; margin-bottom:6px; color:#0b1220; }
+    input[type="number"], select, input[type="text"], textarea {
+      width:100%; padding:10px 12px; border-radius:10px; border:1px solid #e6eef8; background:#fff; font-size:0.95rem;
+    }
+    .inline { display:flex; gap:10px; align-items:center; }
+    .small { width:120px; }
+
+    /* Buttons */
+    .btn {
+      background: linear-gradient(90deg,var(--accent1),var(--accent2));
+      color:white; border:none; padding:10px 14px; border-radius:12px; cursor:pointer; font-weight:800;
+      box-shadow:0 12px 30px rgba(44,152,240,0.12);
+      transition: transform .14s ease;
+    }
+    .btn.secondary { background: linear-gradient(90deg,#ffd54f,#ff7043); box-shadow:0 12px 30px rgba(255,112,67,0.12); color:#082032; }
+    .btn:active{ transform: translateY(2px) }
+
+    /* Result visuals */
+    .stat { display:flex; flex-direction:column; gap:8px; padding:12px; border-radius:10px; background:linear-gradient(180deg,#fff,#fbfdff); border:1px solid #eef6fb; }
+    .stat .value { font-weight:900; font-size:1.4rem; color:var(--accent3); }
+    .muted { color:var(--muted); font-size:0.92rem; }
+
+    .progress { height:12px; background:#f1f5f9; border-radius:20px; overflow:hidden; }
+    .progress > .bar { height:100%; width:0%; transition: width 900ms cubic-bezier(.2,.8,.2,1); border-radius:999px; }
+
+    /* scenario cards */
+    .scenario-grid { display:grid; grid-template-columns: repeat(auto-fit, minmax(160px,1fr)); gap:12px; margin-top:8px; }
+    .scenario-card {
+      padding:12px; border-radius:10px; background: linear-gradient(180deg,#ffffff,#fbfdff); border:1px solid #eef6fb;
+      text-align:center; cursor:pointer; transition:transform .12s, box-shadow .12s, border-color .12s;
+    }
+    .scenario-card:hover { transform: translateY(-6px); box-shadow:0 18px 40px rgba(12,30,60,0.06); }
+    .scenario-card.selected { border-color: rgba(44,152,240,0.2); box-shadow:0 24px 60px rgba(44,152,240,0.06); }
+
+    /* assistant */
+    .assistant {
+      position:fixed; right:20px; bottom:18px; z-index:150; display:flex; flex-direction:column; gap:8px; align-items:flex-end;
+    }
+    .assistant button.fab { background:linear-gradient(90deg,var(--accent2),var(--accent1)); color:white; width:60px; height:60px; border-radius:999px; border:none; font-size:20px; cursor:pointer; box-shadow:0 14px 40px rgba(44,152,240,0.16); }
+    .assistant .panel { width:360px; max-width:calc(100% - 40px); background:var(--card); border-radius:12px; box-shadow:0 20px 60px rgba(12,30,60,0.12); overflow:hidden; display:none; flex-direction:column; }
+    .assistant .panel header{ background:linear-gradient(90deg,var(--accent1),var(--accent2)); color:white; padding:12px; font-weight:800;}
+    .assistant .panel .body{ padding:12px; max-height:300px; overflow:auto; }
+    .assistant .panel .input { display:flex; gap:8px; padding:10px; border-top:1px solid #eef6fb; }
+
+    /* responsive */
+    @media (max-width:900px){
+      .grid.cols-2 { grid-template-columns: 1fr; }
+      .grid.cols-3 { grid-template-columns: 1fr; }
+      header.app-header { padding:12px; }
+      .assistant .panel { width:320px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Intro Splash -->
+  <div id="intro" role="dialog" aria-modal="true" aria-label="Welcome to NeuroMine">
+    <canvas id="particles"></canvas>
+    <div class="inner" style="z-index:2; text-align:center;">
+      <h1>NeuroMine</h1>
+      <p style="max-width:760px; margin:0 auto 20px; opacity:0.95;">
+        AI-powered platform for Life Cycle Assessment (LCA) — predictions, circularity checks and scenario simulations for sustainable mining & manufacturing.
+      </p>
+      <button class="enter" onclick="enterApp()">Enter Platform →</button>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <header class="app-header" id="appHeader" role="banner" aria-hidden="true">
+    <div class="brand" aria-hidden="false">
+      <svg width="40" height="40" viewBox="0 0 24 24" fill="none" style="background:rgba(255,255,255,0.06); border-radius:8px; padding:6px;"><path d="M4 12h16M12 4v16" stroke="white" stroke-width="1.5" stroke-linecap="round"/></svg>
+      <div>
+        <h2>NeuroMine</h2>
+        <div style="font-size:12px; opacity:0.95;">AI • LCA • Circularity</div>
+      </div>
+    </div>
+
+    <nav class="nav" aria-label="Main navigation">
+      <button class="tab-btn active" id="btnPredict" onclick="openTab('predict', this)">🔮 Prediction</button>
+      <button class="tab-btn" id="btnCircular" onclick="openTab('circular', this)">♻️ Circularity</button>
+      <button class="tab-btn" id="btnScenario" onclick="openTab('scenario', this)">🎯 Scenarios</button>
+    </nav>
+  </header>
+
+  <!-- Main container -->
+  <main class="container" id="appMain" aria-live="polite">
+
+    <!-- PREDICTION -->
+    <section id="predict" class="grid card" aria-labelledby="predictTitle">
+      <div style="display:flex; gap:16px; flex-direction:column;">
+        <h3 id="predictTitle">🔮 Impact Prediction — Quick Model</h3>
+        <p class="muted" style="margin-bottom:8px">Enter production & process details. This demo uses an explainable heuristic model — replace with your ML model later.</p>
+
+        <div class="grid cols-2" style="align-items:start;">
+          <div class="card" style="padding:14px;">
+            <form id="predictForm" onsubmit="return false;">
+              <div style="display:grid; gap:10px;">
+                <div>
+                  <label>Production Volume (tons / month)</label>
+                  <input id="p_volume" type="number" value="5000" min="0" />
+                </div>
+
+                <div>
+                  <label>Material Type</label>
+                  <select id="p_material">
+                    <option value="steel">Steel</option>
+                    <option value="aluminum">Aluminum</option>
+                    <option value="copper">Copper</option>
+                    <option value="iron">Iron</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Process Efficiency (%)</label>
+                  <input id="p_eff" type="number" value="78" min="0" max="100" />
+                </div>
+
+                <div>
+                  <label>Renewable Energy Share (%)</label>
+                  <input id="p_renew" type="number" value="30" min="0" max="100" />
+                </div>
+
+                <div>
+                  <label>Region</label>
+                  <select id="p_region">
+                    <option value="asia">Asia</option>
+                    <option value="europe">Europe</option>
+                    <option value="na">North America</option>
+                    <option value="sa">South America</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label>Prediction Horizon</label>
+                  <select id="p_horizon">
+                    <option value="1">1 month</option>
+                    <option value="3">3 months</option>
+                    <option value="6">6 months</option>
+                    <option value="12">12 months</option>
+                  </select>
+                </div>
+
+                <div style="display:flex; gap:10px; margin-top:6px;">
+                  <button class="btn" onclick="computePrediction()">Generate Prediction</button>
+                  <button class="btn secondary" onclick="showExplain()">Explain</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="card" aria-live="polite">
+            <div style="display:flex; gap:12px; align-items:center; justify-content:space-between;">
+              <div>
+                <div class="muted">Predicted CO₂ (tons)</div>
+                <div id="co2Value" class="value" style="font-size:1.6rem; font-weight:900; color:var(--danger)">—</div>
+              </div>
+              <div>
+                <div class="muted">Est. Monthly Cost (USD)</div>
+                <div id="costValue" class="value" style="font-size:1.6rem; font-weight:900; color:#ff8a65">—</div>
+              </div>
+              <div>
+                <div class="muted">Risk</div>
+                <div id="riskLabel" class="value" style="font-size:1.6rem; font-weight:900; color:var(--accent3)">—</div>
+              </div>
+            </div>
+
+            <div style="margin-top:14px;">
+              <div style="display:flex; gap:12px; align-items:center;">
+                <div style="flex:1;">
+                  <div class="muted">CO₂ Level</div>
+                  <div class="progress" aria-hidden><div id="co2Bar" class="bar" style="background:linear-gradient(90deg,var(--danger),#ff8a80)"></div></div>
+                </div>
+                <div style="flex:1;">
+                  <div class="muted">Cost Intensity</div>
+                  <div class="progress" aria-hidden><div id="costBar" class="bar" style="background:linear-gradient(90deg,#feb47b,#fdc830)"></div></div>
+                </div>
+                <div style="flex:1;">
+                  <div class="muted">Risk Score</div>
+                  <div class="progress" aria-hidden><div id="riskBar" class="bar" style="background:linear-gradient(90deg,var(--accent3),var(--accent1))"></div></div>
+                </div>
+              </div>
+
+              <div style="margin-top:12px;">
+                <div class="muted">AI Recommendations</div>
+                <div id="predictRecs" style="display:flex; flex-direction:column; gap:8px; margin-top:8px;"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top:12px;">
+          <h3 style="margin-bottom:10px">Monthly Trend (demo)</h3>
+          <div class="chart-container">
+            <canvas id="trendChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CIRCULARITY -->
+    <section id="circular" class="grid card" aria-labelledby="circTitle" style="margin-top:16px; display:block;">
+      <div style="display:flex; gap:16px; flex-direction:column;">
+        <h3 id="circTitle">♻️ Circularity Check</h3>
+        <p class="muted">Evaluate circularity score & visualize composition. Use inputs to get improvement suggestions.</p>
+
+        <div class="grid cols-2">
+          <div class="card">
+            <form id="circForm" onsubmit="return false;">
+              <div style="display:grid; gap:10px;">
+                <div>
+                  <label>Recycled Content (%)</label>
+                  <input id="c_recycled" type="number" value="25" min="0" max="100" />
+                </div>
+                <div>
+                  <label>Reusable Materials (%)</label>
+                  <input id="c_reusable" type="number" value="40" min="0" max="100" />
+                </div>
+                <div>
+                  <label>End-of-life Recovery (%)</label>
+                  <input id="c_recovery" type="number" value="60" min="0" max="100" />
+                </div>
+                <div>
+                  <label>Product Lifespan (years)</label>
+                  <input id="c_lifespan" type="number" value="15" min="0" />
+                </div>
+                <div>
+                  <label>Tailings (tons / ton)</label>
+                  <input id="c_tailings" type="number" value="1.2" step="0.1" />
+                </div>
+
+                <div style="display:flex; gap:8px; margin-top:6px;">
+                  <button class="btn" onclick="computeCircularity()">Calculate</button>
+                  <button class="btn secondary" onclick="suggestCircularImprovements()">Suggest Improvements</button>
+                </div>
+              </div>
+            </form>
+          </div>
+
+          <div class="card">
+            <div style="display:flex; gap:12px; align-items:center; justify-content:space-between;">
+              <div>
+                <div class="muted">Circularity Score</div>
+                <div id="circScore" style="font-weight:900; font-size:1.6rem; color:var(--accent2)">—</div>
+              </div>
+              <div style="width:200px;">
+                <div class="muted">Recyclability</div>
+                <div class="progress" aria-hidden style="margin-top:6px;"><div id="circBar" class="bar" style="background:linear-gradient(90deg,#56ab2f,#a8e063)"></div></div>
+              </div>
+            </div>
+
+            <div style="margin-top:12px;">
+              <div class="chart-container" style="height:220px;"><canvas id="circDoughnut"></canvas></div>
+            </div>
+
+            <div style="margin-top:10px;">
+              <div class="muted">Improvement Opportunities</div>
+              <ul id="circRecs" style="margin-top:8px; color:var(--muted)"></ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SCENARIOS -->
+    <section id="scenario" class="grid card" aria-labelledby="scenarioTitle" style="margin-top:16px; display:block;">
+      <div style="display:flex; flex-direction:column; gap:12px;">
+        <h3 id="scenarioTitle">🎯 Scenario Simulation</h3>
+        <p class="muted">Pick scenario cards and run simulation — compare CO₂, Energy, and Cost outcomes.</p>
+
+        <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+          <div style="min-width:220px;">
+            <label>Baseline Prod (tons)</label>
+            <input id="s_prod" type="number" value="5000" />
+          </div>
+
+          <div style="min-width:220px;">
+            <label>Efficiency Delta (%)</label>
+            <input id="s_eff_delta" type="number" value="0" />
+          </div>
+
+          <div style="min-width:220px;">
+            <label>Transport Mode</label>
+            <select id="s_transport"><option value="truck">Truck</option><option value="rail">Rail</option><option value="ship">Ship</option></select>
+          </div>
+
+          <div style="margin-left:auto; display:flex; gap:8px;">
+            <button class="btn" onclick="resetScenario()">Reset</button>
+            <button class="btn" onclick="runScenario()">Run Simulation</button>
+          </div>
+        </div>
+
+        <div class="scenario-grid" id="scenarioCards" style="margin-top:10px;">
+          <div class="scenario-card" data-id="current" onclick="toggleCard(this)">🏭 Current Ops</div>
+          <div class="scenario-card" data-id="renewable" onclick="toggleCard(this)">🌱 Renewable Energy</div>
+          <div class="scenario-card" data-id="efficiency" onclick="toggleCard(this)">⚡ Efficiency Boost</div>
+          <div class="scenario-card" data-id="circular" onclick="toggleCard(this)">♻️ Circular Economy</div>
+          <div class="scenario-card" data-id="hybrid" onclick="toggleCard(this)">🔀 Hybrid</div>
+        </div>
+
+        <div class="card" style="padding:12px;">
+          <div style="display:flex; gap:12px; align-items:stretch; flex-wrap:wrap;">
+            <div style="flex:1; min-width:260px;">
+              <canvas id="scenarioChart" height="200"></canvas>
+            </div>
+
+            <div style="width:320px;">
+              <div style="font-weight:800">Recommendation</div>
+              <div style="margin-top:8px; padding:10px; border-radius:10px; border:1px solid #eef6fb;" id="scenarioRec">Run simulation to get a recommendation</div>
+
+              <div style="margin-top:12px;">
+                <div class="muted">Estimated Annual Savings</div>
+                <div id="scenarioSavings" style="font-weight:900; font-size:1.4rem; color:var(--accent2)">$0</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Floating assistant -->
+  <div class="assistant" aria-hidden="false">
+    <div class="panel" id="assistantPanel" role="dialog" aria-label="AI assistant" style="display:none;">
+      <header>NeuroMine Assistant</header>
+      <div class="body" id="assistantBody">
+        <div><strong>AI:</strong> Hi — ask me about reducing CO₂, circularity or scenario tradeoffs.</div>
+      </div>
+      <div class="input">
+        <input id="assistantInput" placeholder="Ask the assistant..." onkeydown="if(event.key==='Enter') assistantSend()" />
+        <button class="btn" onclick="assistantSend()">Send</button>
+      </div>
+    </div>
+
+    <button class="fab" onclick="toggleAssistant()" aria-label="Open assistant">💬</button>
+  </div>
+
+  <script>
+    /* ---------- Intro particles ---------- */
+    const canvas = document.getElementById('particles');
+    const ctx = canvas.getContext('2d');
+    let W = canvas.width = window.innerWidth;
+    let H = canvas.height = window.innerHeight;
+    window.addEventListener('resize', ()=>{ W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; });
+
+    const particles = [];
+    const COUNT = Math.round((W * H) / 8000);
+    for(let i=0;i<COUNT;i++){
+      particles.push({
+        x: Math.random()*W,
+        y: Math.random()*H,
+        r: Math.random()*2 + 0.6,
+        vx: (Math.random()-0.5)*0.6,
+        vy: (Math.random()-0.5)*0.6,
+        alpha: Math.random()*0.6 + 0.2
+      });
+    }
+
+    function drawParticles(){
+      ctx.clearRect(0,0,W,H);
+      for(const p of particles){
+        p.x += p.vx; p.y += p.vy;
+        if(p.x < -10) p.x = W + 10;
+        if(p.x > W + 10) p.x = -10;
+        if(p.y < -10) p.y = H + 10;
+        if(p.y > H + 10) p.y = -10;
+
+        ctx.beginPath();
+        ctx.fillStyle = 'rgba(255,255,255,' + p.alpha + ')';
+        ctx.arc(p.x, p.y, p.r, 0, Math.PI*2);
+        ctx.fill();
+      }
+      requestAnimationFrame(drawParticles);
+    }
+    drawParticles();
+
+    /* ---------- App show/hide ---------- */
+    function enterApp(){
+      // hide intro
+      document.getElementById('intro').style.display = 'none';
+      // show header and main
+      document.getElementById('appHeader').style.display = 'flex';
+      document.getElementById('appMain').style.display = 'block';
+      // init charts
+      initTrendChart();
+      initCircChart();
+      initScenarioChart();
+    }
+
+    /* ---------- Tab handling ---------- */
+    function openTab(id, btn){
+      document.querySelectorAll('main section').forEach(s=> s.style.display='none');
+      document.getElementById(id).style.display = 'block';
+      document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+      if(btn) btn.classList.add('active');
+    }
+
+    /* ---------- Animated counter helper ---------- */
+    function animateNumber(el, start, end, duration=800, formatFn){
+      const startTime = performance.now();
+      function step(ts){
+        const t = Math.min(1, (ts - startTime)/duration);
+        const val = Math.round(start + (end - start) * (1 - Math.pow(1 - t, 3)));
+        el.textContent = formatFn ? formatFn(val) : val;
+        if(t < 1) requestAnimationFrame(step);
+      }
+      requestAnimationFrame(step);
+    }
+
+    /* ---------- PREDICTION (demo heuristic) ---------- */
+    const trendCtx = document.getElementById('trendChart').getContext('2d');
+    let trendChart = null;
+    function initTrendChart(){
+      const labels = ['Jan','Feb','Mar','Apr','May','Jun'];
+      trendChart = new Chart(trendCtx, {
+        type:'line',
+        data:{
+          labels,
+          datasets:[
+            { label:'CO₂ (tons)', data:[3200,2950,2800,2650,2500,2847], borderColor:'#dc3545', backgroundColor:'rgba(220,53,69,0.06)', tension:0.35, fill:true },
+            { label:'Water (m³)', data:[18000,17200,16800,16200,15800,15432], borderColor:'#2c98f0', backgroundColor:'rgba(44,152,240,0.06)', tension:0.35, fill:true }
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'top'}} }
+      });
+    }
+
+    function computePrediction(){
+      // gather inputs
+      const vol = Number(document.getElementById('p_volume').value) || 0;
+      const mat = document.getElementById('p_material').value;
+      const eff = Number(document.getElementById('p_eff').value) || 0;
+      const renew = Number(document.getElementById('p_renew').value) || 0;
+      const region = document.getElementById('p_region').value;
+      const horizon = Number(document.getElementById('p_horizon').value) || 1;
+
+      // demo factors
+      const matFactor = {steel:1.0, aluminum:1.6, copper:1.4, iron:0.9}[mat] || 1.0;
+      const regionFactor = {asia:1.05, europe:0.95, na:0.95, sa:1.0}[region] || 1.0;
+      const renewableEffect = 1 - (renew/100)*0.6;
+      const efficiencyEffect = (100 - eff) / 100;
+
+      // base per-ton emission
+      const basePerTon = 0.6 * matFactor;
+      let predicted = Math.round(vol * basePerTon * regionFactor * renewableEffect * efficiencyEffect);
+      predicted = Math.round(predicted * (horizon)); // scale by horizon
+
+      const cost = Math.round(predicted * 45); // demo $45 per ton
+      const riskScore = Math.min(100, Math.round((predicted / 8000) * 100));
+      const riskLabel = riskScore > 70 ? 'HIGH' : riskScore > 40 ? 'MEDIUM' : 'LOW';
+
+      // animate numbers & bars
+      animateNumber(document.getElementById('co2Value'), 0, predicted, 900, v => v.toLocaleString());
+      animateNumber(document.getElementById('costValue'), 0, cost, 900, v => '$' + v.toLocaleString());
+      document.getElementById('riskLabel').textContent = riskLabel;
+
+      // set progress widths
+      setTimeout(()=> {
+        document.getElementById('co2Bar').style.width = Math.min(100, (predicted/10000)*100) + '%';
+        document.getElementById('costBar').style.width = Math.min(100, (cost/1000000)*100) + '%';
+        document.getElementById('riskBar').style.width = riskScore + '%';
+      }, 60);
+
+      // recommendations (demo)
+      const recs = [];
+      if(renew < 50) recs.push('Increase renewable share to >=50% for substantial CO₂ reduction.');
+      if(eff < 85) recs.push('Improve process efficiency to 85%+ by equipment tuning and control.');
+      if(mat === 'aluminum') recs.push('Consider recycled aluminum sources to reduce footprint.');
+      recs.push('Implement heat recovery & real-time monitoring for operational gains.');
+
+      const recContainer = document.getElementById('predictRecs');
+      recContainer.innerHTML = '';
+      recs.forEach((r, idx) => {
+        const e = document.createElement('div');
+        e.className = 'muted';
+        e.style.opacity = 0;
+        e.innerHTML = `✅ ${r}`;
+        recContainer.appendChild(e);
+        setTimeout(()=> e.style.opacity = 1, idx * 120);
+      });
+
+      // update trend chart demo by shifting and adding new predicted point for illustration
+      if(trendChart){
+        trendChart.data.datasets[0].data.push(predicted);
+        trendChart.data.labels.push('Forecast');
+        if(trendChart.data.datasets[0].data.length > 12) {
+          trendChart.data.datasets[0].data.shift();
+          trendChart.data.labels.shift();
+        }
+        trendChart.update();
+      }
+
+      document.getElementById('predictRecs').focus();
+    }
+
+    function showExplain(){
+      alert('Prediction model (demo): basePerTon * production * regionFactor * (1 - renewablesImpact) * (1 - efficiencyLoss). Replace with your ML model for production use.');
+    }
+
+    /* ---------- CIRCULARITY ---------- */
+    let circChart = null;
+    function initCircChart(){
+      const ctx = document.getElementById('circDoughnut').getContext('2d');
+      circChart = new Chart(ctx, {
+        type:'doughnut',
+        data:{
+          labels:['Recycled','Recovery','Reusable','Lifespan','Other'],
+          datasets:[{data:[25,60,40,15,20], backgroundColor:['#28a745','#17a2b8','#6f42c1','#ffc107','#e6eef8'], borderColor:'#fff', borderWidth:2}]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, cutout:'64%', plugins:{legend:{position:'bottom'}} }
+      });
+    }
+
+    function computeCircularity(){
+      const rec = Number(document.getElementById('c_recycled').value) || 0;
+      const reusable = Number(document.getElementById('c_reusable').value) || 0;
+      const recovery = Number(document.getElementById('c_recovery').value) || 0;
+      const life = Number(document.getElementById('c_lifespan').value) || 0;
+      const tailings = Number(document.getElementById('c_tailings').value) || 0;
+
+      // score heuristic
+      let score = Math.round((rec * 0.32) + (reusable * 0.18) + (recovery * 0.25) + Math.min(life*1.5, 20) - (tailings * 5));
+      score = Math.max(0, Math.min(100, score));
+
+      document.getElementById('circScore').textContent = score + '/100';
+      document.getElementById('circBar').style.width = Math.min(100, score) + '%';
+
+      // update doughnut
+      const other = Math.max(0, 100 - (rec + reusable + recovery) / 3);
+      if(circChart){
+        circChart.data.datasets[0].data = [rec, recovery, reusable, life, Math.round(other)];
+        circChart.update();
+      }
+
+      // improvement suggestions
+      const suggestions = [];
+      if(rec < 35) suggestions.push('Increase recycled content to 35%+ by sourcing secondary materials.');
+      if(recovery < 70) suggestions.push('Improve take-back and collection to reach 70% recovery.');
+      if(reusable < 50) suggestions.push('Design for disassembly to boost reusability.');
+      if(tailings > 1.5) suggestions.push('Optimize processing to reduce tailings and improve material recovery.');
+
+      const ul = document.getElementById('circRecs');
+      ul.innerHTML = '';
+      suggestions.forEach((s, i) => {
+        const li = document.createElement('li');
+        li.textContent = s;
+        li.style.opacity = 0;
+        ul.appendChild(li);
+        setTimeout(()=> li.style.opacity = 1, i*140);
+      });
+    }
+
+    function suggestCircularImprovements(){
+      computeCircularity();
+      alert('Suggestions generated — see Improvement Opportunities section.');
+    }
+
+    /* ---------- SCENARIOS ---------- */
+    const scenarioMap = {
+      current: {co2Factor:1.00, energyFactor:1.00, costFactor:1.00, name:'Current'},
+      renewable: {co2Factor:0.60, energyFactor:1.05, costFactor:1.10, name:'Renewable Energy'},
+      efficiency: {co2Factor:0.80, energyFactor:0.85, costFactor:0.95, name:'Efficiency Boost'},
+      circular: {co2Factor:0.85, energyFactor:0.95, costFactor:0.95, name:'Circular Economy'},
+      hybrid: {co2Factor:0.50, energyFactor:0.9, costFactor:0.92, name:'Hybrid'}
+    };
+    let selected = new Set();
+    function toggleCard(el){
+      const id = el.dataset.id;
+      if(selected.has(id)){ selected.delete(id); el.classList.remove('selected'); }
+      else { selected.add(id); el.classList.add('selected'); }
+    }
+
+    let scenarioChart = null;
+    function initScenarioChart(){
+      const ctx = document.getElementById('scenarioChart').getContext('2d');
+      scenarioChart = new Chart(ctx, {
+        type:'bar',
+        data:{
+          labels:['CO₂ (tons)','Energy (MWh)','Cost (USD)'],
+          datasets:[
+            { label:'Baseline', data:[2800,5200,125000], backgroundColor:'#9ca3ff' },
+            { label:'Scenario', data:[2500,4800,110000], backgroundColor:'#2cc4a2' }
+          ]
+        },
+        options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ beginAtZero:true } } }
+      });
+    }
+
+    function resetScenario(){
+      selected.clear();
+      document.querySelectorAll('.scenario-card').forEach(c => c.classList.remove('selected'));
+      if(scenarioChart){
+        scenarioChart.data.datasets[1].data = [2800,5200,125000];
+        scenarioChart.update();
+      }
+      document.getElementById('scenarioRec').textContent = 'Run simulation to get a recommendation';
+      document.getElementById('scenarioSavings').textContent = '$0';
+    }
+
+    function runScenario(){
+      if(selected.size === 0){
+        alert('Please select at least one scenario card (recommended 1–3).');
+        return;
+      }
+      const prod = Number(document.getElementById('s_prod').value) || 5000;
+      const effDelta = Number(document.getElementById('s_eff_delta').value) || 0;
+      const transport = document.getElementById('s_transport').value;
+
+      // baseline (demo)
+      const baseline = {co2:2800, energy:5200, cost:125000};
+
+      // combine selected scenario factors multiplicatively (demo)
+      let co2Factor = 1.0, energyFactor = 1.0, costFactor = 1.0;
+      selected.forEach(id => {
+        const s = scenarioMap[id] || scenarioMap['current'];
+        co2Factor *= s.co2Factor;
+        energyFactor *= s.energyFactor;
+        costFactor *= s.costFactor;
+      });
+
+      // incorporate efficiency delta (improved efficiency reduces CO2 and energy)
+      const effMultiplier = Math.max(0.5, 1 - (effDelta / 100));
+      co2Factor *= effMultiplier;
+      energyFactor *= effMultiplier;
+
+      // transport effect
+      const transportFactor = transport === 'truck' ? 1.0 : transport === 'rail' ? 0.86 : 0.9;
+      co2Factor *= transportFactor;
+
+      const newCo2 = Math.round(baseline.co2 * co2Factor * (prod / 5000));
+      const newEnergy = Math.round(baseline.energy * energyFactor * (prod / 5000));
+      const newCost = Math.round(baseline.cost * costFactor * (prod / 5000));
+
+      // animate chart update
+      if(!scenarioChart) initScenarioChart();
+      scenarioChart.data.datasets[1].data = [newCo2, newEnergy, newCost];
+      scenarioChart.update();
+
+      // pick best single scenario (lowest predicted CO2) among selected
+      let bestId = null; let bestVal = Infinity;
+      selected.forEach(id => {
+        const candidate = scenarioMap[id];
+        const val = baseline.co2 * candidate.co2Factor * effMultiplier * transportFactor;
+        if(val < bestVal){ bestVal = val; bestId = id; }
+      });
+
+      const bestName = bestId ? scenarioMap[bestId].name : 'Hybrid';
+      document.getElementById('scenarioRec').textContent = `${bestName} recommended — projected CO₂: ${newCo2.toLocaleString()} tons.`;
+      const annualSavings = Math.round((baseline.cost - newCost) * 12);
+      document.getElementById('scenarioSavings').textContent = `$${annualSavings.toLocaleString()}`;
+    }
+
+    /* ---------- Assistant ---------- */
+    function toggleAssistant(){
+      const panel = document.getElementById('assistantPanel');
+      panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    }
+    function assistantSend(){
+      const input = document.getElementById('assistantInput');
+      const body = document.getElementById('assistantBody');
+      const text = input.value.trim();
+      if(!text) return;
+      const user = document.createElement('div'); user.innerHTML = `<strong>You:</strong> ${text}`; body.appendChild(user);
+      input.value = '';
+      // fake AI reply
+      setTimeout(()=> {
+        const reply = document.createElement('div');
+        let r = "I can help analyze predictions, circularity suggestions, and simulate scenarios. Try: 'simulate renewable + efficiency'.";
+        if(/reduce|co2|carbon/i.test(text)) r = "To reduce CO₂: increase renewables, boost efficiency, and adopt circular materials. I can run scenarios for exact numbers.";
+        if(/circular|recycle/i.test(text)) r = "Increase recycled content and end-of-life recovery. Design for disassembly and supplier closed-loop contracts are effective.";
+        reply.innerHTML = `<strong>AI:</strong> ${r}`; body.appendChild(reply);
+        body.scrollTop = body.scrollHeight;
+      }, 700);
+    }
+
+    /* ---------- On load ---------- */
+    window.addEventListener('load', ()=> {
+      // nothing shown until intro dismissed
+    });
+
+    // Accessibility: close intro with Enter/Escape
+    document.addEventListener('keydown', (e)=>{
+      if(document.getElementById('intro').style.display !== 'none' && (e.key === 'Enter' || e.key === ' ')) enterApp();
+    });
+  </script>
+
+</body>
+</html>
